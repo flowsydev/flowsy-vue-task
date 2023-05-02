@@ -46,7 +46,8 @@ export interface Task<A = undefined, R = undefined> {
 
 export interface TaskOptions<A = undefined> {
   tag?: string | { (): string };
-  argument?: A;
+
+  createArgument?: () => A;
 
   canExecute?: {
     (argument: A): boolean;
@@ -60,11 +61,6 @@ export interface TaskOptions<A = undefined> {
   abort?: {
     (argument: A): Promise<void>;
     (argument?: A): Promise<void>;
-  };
-
-  createArgument?: {
-    (): Promise<A>;
-    (): Promise<A | undefined>;
   };
 
   throwOnFail?: boolean;
@@ -94,8 +90,8 @@ export default function useTask<A = undefined, R = undefined>(
   });
 
   const argument = ref<A>();
-  if (options?.argument) {
-    argument.value = options.argument;
+  if (options?.createArgument) {
+    argument.value = options.createArgument();
   }
 
   const state = ref<TaskState>(TaskStates.Idle);
@@ -237,7 +233,7 @@ export default function useTask<A = undefined, R = undefined>(
 
     state.value = TaskStates.Idle;
     if (options?.createArgument) {
-      argument.value = await options.createArgument();
+      argument.value = options.createArgument();
     } else {
       argument.value = undefined;
     }

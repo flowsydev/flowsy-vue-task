@@ -1,6 +1,7 @@
 # Flowsy Vue Task
 
 Run async actions and keep track of their execution state and results in your Vue applications.
+Your async actions can be as simple as an iteration through some array elements or as complex as your business logic including backend calls. 
 
 ## Install
 ```shell
@@ -14,7 +15,9 @@ npm install --save @flowsydev/vue-task
 import { toRefs } from "vue";
 import useTask from "@flowsydev/vue-task";
 
+////////////////////////////////////////////////////////////
 // Action required: sum numbers from 'start' to 'end'
+////////////////////////////////////////////////////////////
 
 // Action argument type
 interface SumArgument {
@@ -31,6 +34,7 @@ function sum(argument: SumArgument): Promise<number> {
     }
     // Simulate time-consuming task
     setTimeout(() => {
+      // Simulate error
       if (s % 2 !== 0) reject(new Error(`Invalid sum: ${s}`));
       resolve(s);
     }, 2000);
@@ -42,7 +46,7 @@ const task = useTask<SumArgument, number>(
   sum,
   {
     tag: "SumNumbers",
-    argument: { start: 0, end: 0 }, // Initial argument value
+    createArgument: () => ({ start: 0, end: 0 }), // Create initial argument
     canExecute: (a: SumArgument) => (a && (a.end > a.start)) || false  // Optional validation
   });
 
@@ -86,5 +90,4 @@ const {
     <pre>{{ task }}</pre>
   </div>
 </template>
-
 ```
