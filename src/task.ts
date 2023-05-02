@@ -174,15 +174,15 @@ export default function useTask<A = undefined, R = undefined>(
     if (isExecuting.value)
       throw new Error(tag.value ? `Task ${tag.value} is already executing.` : `Task already executing.`);
 
-    if (a) {
-      argument.value = a;
-    }
-
     if (!canExecute.value)
       throw new Error(tag.value ? `Cannot execute task ${tag.value}` : `Cannot execute task.`);
 
+    if (a) {
+      argument.value = a;
+    }
     state.value = TaskStates.Executing;
     result.value = undefined;
+    error.value = undefined;
     const eventContext = createEventContext<A, R>();
 
     const t = tag.value || "Anonymous";
@@ -194,7 +194,7 @@ export default function useTask<A = undefined, R = undefined>(
       if (argument.value) {
         result.value = (await (action as TaskActionWithRequiredArgument<A,  R>)(argument.value)) || undefined;
       } else {
-        result.value = (await (action as TaskActionWithOptionalArgument<A,  R>)(argument.value)) || undefined;
+        result.value = (await (action as TaskActionWithOptionalArgument<A,  R>)()) || undefined;
       }
       state.value = TaskStates.Completed;
     } catch (e: any) {
