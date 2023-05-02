@@ -48,13 +48,28 @@ export interface TaskOptions<A = undefined> {
   tag?: string | { (): string };
   argument?: A;
 
-  canExecute?: (argument?: A) => boolean;
+  canExecute?: {
+    (argument: A): boolean;
+    (argument?: A): boolean;
+  }
 
-  canAbort?: (argument?: A) => boolean;
-  abort?: (argument?: A) => Promise<void>;
+  canAbort?: {
+    (argument: A): boolean;
+    (argument?: A): boolean;
+  }
+  abort?: {
+    (argument: A): Promise<void>;
+    (argument?: A): Promise<void>;
+  };
 
-  canReset?: (argument?: A) => boolean;
-  reset?: (argument?: A) => Promise<A>;
+  canReset?: {
+    (argument: A): boolean;
+    (argument?: A): boolean;
+  };
+  resetArgument?: {
+    (argument: A): Promise<A>;
+    (argument?: A): Promise<A>;
+  };
 
   throwOnFail?: boolean;
 }
@@ -231,8 +246,8 @@ export default function useTask<A = undefined, R = undefined>(
       throw new Error(`Cannot reset task ${tag.value ? tag.value + "." : ""}`.trim())
 
     state.value = TaskStates.Idle;
-    if (options && typeof options.reset === "function") {
-      argument.value = (await options.reset(argument.value)) || undefined;
+    if (options && typeof options.resetArgument === "function") {
+      argument.value = (await options.resetArgument(argument.value)) || undefined;
     }
     result.value = undefined;
     error.value = undefined;
