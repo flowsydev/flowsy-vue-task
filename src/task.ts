@@ -24,7 +24,7 @@ export interface Task<A = undefined, R = undefined> {
   abort: () => Promise<void>;
 
   canReset: boolean;
-  reset: () => Promise<A>;
+  reset: () => Promise<void>;
 
   isIdle: boolean;
   isExecuting: boolean;
@@ -62,13 +62,9 @@ export interface TaskOptions<A = undefined> {
     (argument?: A): Promise<void>;
   };
 
-  canReset?: {
-    (argument: A): boolean;
-    (argument?: A): boolean;
-  };
-  resetArgument?: {
-    (argument: A): Promise<A>;
-    (argument?: A): Promise<A>;
+  createArgument?: {
+    (): Promise<A>;
+    (): Promise<A | undefined>;
   };
 
   throwOnFail?: boolean;
@@ -106,8 +102,16 @@ export default function useTask<A = undefined, R = undefined>(
   const result = ref<R>();
   const error = ref<any>();
 
-  const canExecute = computed(() =>
+  const isIdle = computed(() => state.value === TaskStates.Idle);
+  const isExecuting = computed(() => state.value === TaskStates.Executing);
+  const isCompleted = computed(() => state.value === TaskStates.Completed);
+  const isFailed = computed(() => state.value === TaskStates.Failed);
+  const isAborted = computed(() => state.value === TaskStates.Aborted);
+  const isFinished = computed(
+    () => isCompleted.value || isFailed.value || isAborted.value
+  );
 
+  const canExecute = computed(() =>
     options && typeof options.canExecute === "function"
       ? options.canExecute(argument.value)
       : true
@@ -116,20 +120,6 @@ export default function useTask<A = undefined, R = undefined>(
     options && typeof options.canAbort === "function"
       ? options.canAbort(argument.value)
       : false
-  );
-  const canReset = computed(() =>
-    options && typeof options.canReset === "function"
-      ? options.canReset(argument.value)
-      : false
-  );
-
-  const isIdle = computed(() => state.value === TaskStates.Idle);
-  const isExecuting = computed(() => state.value === TaskStates.Executing);
-  const isCompleted = computed(() => state.value === TaskStates.Completed);
-  const isFailed = computed(() => state.value === TaskStates.Failed);
-  const isAborted = computed(() => state.value === TaskStates.Aborted);
-  const isFinished = computed(
-    () => isCompleted.value || isFailed.value || isAborted.value
   );
 
   const onIdleHooks: Array<TaskEventCallback<A, R>> = [];
@@ -242,12 +232,14 @@ export default function useTask<A = undefined, R = undefined>(
   }
 
   async function reset() {
-    if (isExecuting.value || !canReset.value)
+    if (isExecuting.value)
       throw new Error(`Cannot reset task ${tag.value ? tag.value + "." : ""}`.trim())
 
     state.value = TaskStates.Idle;
-    if (options && typeof options.resetArgument === "function") {
-      argument.value = (await options.resetArgument(argument.value)) || undefined;
+    if (options?.createArgument) {
+      argument.value = await options.createArgument();
+    } else {
+      argument.value = undefined;
     }
     result.value = undefined;
     error.value = undefined;
@@ -290,11 +282,6 @@ export default function useTask<A = undefined, R = undefined>(
 
   Object.defineProperty(task, "canAbort", {
     get: () => canAbort.value,
-    enumerable: true
-  });
-
-  Object.defineProperty(task, "canReset", {
-    get: () => canReset.value,
     enumerable: true
   });
 
