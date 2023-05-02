@@ -43,7 +43,7 @@ const task = useTask<SumArgument, number>(
   {
     tag: "SumNumbers",
     argument: { start: 0, end: 0 }, // Initial argument value
-    canExecute: (a?: SumArgument) => (a && (a.end > a.start)) || false  // Optional validation
+    canExecute: (a: SumArgument) => (a && (a.end > a.start)) || false  // Optional validation
   });
 
 // Available properties and functions
