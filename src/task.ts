@@ -94,6 +94,15 @@ export default function useTask<A = undefined, R = undefined>(
     argument.value = options.createArgument();
   }
 
+  const throwOnFail = computed<boolean>(() => {
+    let value = true;
+
+    if (options && options.throwOnFail !== undefined)
+      value = options.throwOnFail;
+
+    return value;
+  });
+
   const state = ref<TaskState>(TaskStates.Idle);
   const result = ref<R>();
   const error = ref<any>();
@@ -174,12 +183,13 @@ export default function useTask<A = undefined, R = undefined>(
     if (isExecuting.value)
       throw new Error(tag.value ? `Task ${tag.value} is already executing.` : `Task already executing.`);
 
-    if (!canExecute.value)
-      throw new Error(tag.value ? `Cannot execute task ${tag.value}` : `Cannot execute task.`);
-
     if (a) {
       argument.value = a;
     }
+
+    if (!canExecute.value)
+      throw new Error(tag.value ? `Cannot execute task ${tag.value}` : `Cannot execute task.`);
+
     state.value = TaskStates.Executing;
     result.value = undefined;
     error.value = undefined;
@@ -212,7 +222,7 @@ export default function useTask<A = undefined, R = undefined>(
       onFinishedHooks.forEach((fn) => fn(eventContext));
     }
 
-    if (error.value && options && !!options.throwOnFail) {
+    if (error.value && throwOnFail.value) {
       throw error.value;
     }
 
