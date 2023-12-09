@@ -1,6 +1,6 @@
 {
   "name": "@flowsydev/vue-task",
-  "version": "0.1.9-dev",
+  "version": "1.0.0",
   "type": "module",
   "module": "./dist/flowsydev-vue-task.es.js",
   "main": "./dist/flowsydev-vue-task.umd.js",

@@ -230,9 +230,10 @@ export default function useTask<A = undefined, R = undefined>(
   }
 
   async function abort() {
-    if (!isExecuting.value || !canAbort.value || !(options?.abort && typeof options?.canAbort === "function"))
+    if (!isExecuting.value || !canAbort.value || !(options?.abort && typeof options?.abort === "function"))
       throw new Error(`Cannot abort task ${tag.value ? tag.value + "." : ""}`.trim())
 
+    await options.abort(argument.value);
     state.value = TaskStates.Aborted;
     onAbortedHooks.forEach((fn) => fn(createEventContext<A, R>()));
   }
