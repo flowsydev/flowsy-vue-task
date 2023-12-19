@@ -3,33 +3,29 @@ import { TaskEventCallback, TaskEventContext, type TaskEventHook } from "./task-
 import { TaskStates } from "./task-state";
 import type TaskState from "./task-state";
 
-export type TaskActionWithRequiredArgument<A, R = undefined> =
-  (argument: A) => Promise<R | undefined>;
-export type TaskActionWithOptionalArgument<A = undefined, R = undefined> =
-  (argument?: A) => Promise<R | undefined>;
-export type TaskAction<A = undefined, R = undefined> =
-  TaskActionWithRequiredArgument<A, R> |
-  TaskActionWithOptionalArgument<A, R>;
+export type TaskAction<A, R> = (argument?: A) => Promise<R>;
+export type AbortAction<A> = (argument?: A) => void;
 
-export interface Task<A = undefined, R = undefined> {
+export interface Task<A, R> {
   tag?: string;
   state: TaskState;
 
-  argument?: A;
+  argument: A;
 
   canExecute: boolean;
-  execute: TaskActionWithOptionalArgument<A, R>;
+  execute: TaskAction<A, R>;
 
   canAbort: boolean;
-  abort: () => Promise<void>;
+  abort: () => void;
 
   canReset: boolean;
-  reset: () => Promise<void>;
+  reset: () => void;
 
   isIdle: boolean;
   isExecuting: boolean;
   isCompleted: boolean;
   isFailed: boolean;
+  isAborting: boolean;
   isAborted: boolean;
   isFinished: boolean;
 
@@ -44,26 +40,14 @@ export interface Task<A = undefined, R = undefined> {
   error?: any;
 }
 
-export interface TaskOptions<A = undefined> {
+export interface TaskOptions<A> {
   tag?: string | { (): string };
 
   createArgument?: () => A;
 
-  canExecute?: {
-    (argument: A): boolean;
-    (argument?: A): boolean;
-  }
+  canExecute?: (argument?: A) => boolean;
 
-  canAbort?: {
-    (argument: A): boolean;
-    (argument?: A): boolean;
-  }
-  abort?: {
-    (argument: A): Promise<void>;
-    (argument?: A): Promise<void>;
-  };
-
-  throwOnFail?: boolean;
+  abort?: AbortAction<A>;
 }
 
 export interface GlobalOptions {
@@ -78,30 +62,21 @@ export function configureTasks(options: GlobalOptions) {
   globalOptions.debug = options.debug;
 }
 
-export type ReactiveTask<A = undefined, R = undefined> = UnwrapNestedRefs<Task<A, R>>;
+export type ReactiveTask<A, R> = UnwrapNestedRefs<Task<A, R>>;
 
 export default function useTask<A = undefined, R = undefined>(
   action: TaskAction<A, R>,
   options?: TaskOptions<A>
 ): ReactiveTask<A, R> {
   const tag = computed<string | undefined>(() => {
-    if (!options) return undefined;
+    if (!(options?.tag)) return undefined;
     return typeof options.tag === "function" ? options.tag() : options.tag;
   });
 
   const argument = ref<A>();
-  if (options?.createArgument) {
+  if (typeof (options?.createArgument) === "function") {
     argument.value = options.createArgument();
   }
-
-  const throwOnFail = computed<boolean>(() => {
-    let value = true;
-
-    if (options && options.throwOnFail !== undefined)
-      value = options.throwOnFail;
-
-    return value;
-  });
 
   const state = ref<TaskState>(TaskStates.Idle);
   const result = ref<R>();
@@ -121,11 +96,7 @@ export default function useTask<A = undefined, R = undefined>(
       ? options.canExecute(argument.value)
       : true
   );
-  const canAbort = computed(() =>
-    options && typeof options.canAbort === "function"
-      ? options.canAbort(argument.value)
-      : false
-  );
+  const canAbort = computed(() => typeof (options?.abort) === "function");
 
   const onIdleHooks: Array<TaskEventCallback<A, R>> = [];
   const onExecutingHooks: Array<TaskEventCallback<A, R>> = [];
@@ -158,7 +129,7 @@ export default function useTask<A = undefined, R = undefined>(
     onFinishedHooks.push(fn);
   }
 
-  function createEventContext<A = undefined, R = undefined>(): TaskEventContext<A, R> {
+  function createEventContext<A, R>(): TaskEventContext<A, R> {
     const context = {};
     Object.defineProperty(context, "state", {
       get: () => toRaw(state.value),
@@ -179,7 +150,7 @@ export default function useTask<A = undefined, R = undefined>(
     return context as TaskEventContext<A, R>;
   }
 
-  async function execute(a?: A): Promise<R | undefined> {
+  async function execute(a?: A): Promise<R> {
     if (isExecuting.value)
       throw new Error(tag.value ? `Task ${tag.value} is already executing.` : `Task already executing.`);
 
@@ -201,11 +172,7 @@ export default function useTask<A = undefined, R = undefined>(
       fn(eventContext as TaskEventContext<A, R>)
     );
     try {
-      if (argument.value) {
-        result.value = (await (action as TaskActionWithRequiredArgument<A,  R>)(argument.value)) || undefined;
-      } else {
-        result.value = (await (action as TaskActionWithOptionalArgument<A,  R>)()) || undefined;
-      }
+      result.value = await action(argument.value);
       state.value = TaskStates.Completed;
     } catch (e: any) {
       error.value = e;
@@ -222,23 +189,22 @@ export default function useTask<A = undefined, R = undefined>(
       onFinishedHooks.forEach((fn) => fn(eventContext));
     }
 
-    if (error.value && throwOnFail.value) {
+    if (error.value)
       throw error.value;
-    }
 
-    return result.value;
+    return result.value!;
   }
 
-  async function abort() {
+  function abort() {
     if (!isExecuting.value || !canAbort.value || !(options?.abort && typeof options?.abort === "function"))
       throw new Error(`Cannot abort task ${tag.value ? tag.value + "." : ""}`.trim())
 
-    await options.abort(argument.value);
     state.value = TaskStates.Aborted;
+    options.abort(argument.value);
     onAbortedHooks.forEach((fn) => fn(createEventContext<A, R>()));
   }
 
-  async function reset() {
+  function reset() {
     if (isExecuting.value)
       throw new Error(`Cannot reset task ${tag.value ? tag.value + "." : ""}`.trim())
 
