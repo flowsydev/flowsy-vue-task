@@ -11,7 +11,7 @@ export default defineConfig({
     lib: {
       entry: path.resolve(__dirname, 'src/index.ts'),
       name: libName,
-      formats: ["es", "umd"],
+      formats: ["es", "umd", "cjs"],
       fileName: (format) => `${libName}.${format}.js`
     },
     rollupOptions: {
@@ -20,7 +20,7 @@ export default defineConfig({
         globals: {
           vue: 'Vue'
         },
-        exports: "named"
+        exports: "named",
       }
     }
   },

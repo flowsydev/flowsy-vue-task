@@ -1,9 +1,9 @@
 {
   "name": "@flowsydev/vue-task",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "type": "module",
   "module": "./dist/flowsydev-vue-task.es.js",
-  "main": "./dist/flowsydev-vue-task.umd.js",
+  "main": "./dist/flowsydev-vue-task.cjs.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist"
@@ -11,7 +11,7 @@
   "exports": {
     ".": {
       "import": "./dist/flowsydev-vue-task.es.js",
-      "require": "./dist/flowsydev-vue-task.umd.js"
+      "require": "./dist/flowsydev-vue-task.cjs.js"
     }
   },
   "scripts": {
